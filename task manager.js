@@ -1,132 +1,100 @@
-document.addEventListener('DOMContentLoaded', function() {
- const taskInput = document.getElementById('task-input')
- const addTaskBtn = document.getElementById('add-task')
- const taskList = document.getElementById('task-list')
- const enptyMessage = document.getElementById('empty-message')
- const filterBtns = document.querySelectorAll('.filter-btn')
 
- let tasks=[]
- let currentFilter = 'all'
+document.addEventListener('DOMContentLoaded', () => {
+  // ── DOM cache ──────────────────────────────────────────
+  const taskInput     = document.getElementById('task-input');
+  const addTaskBtn    = document.getElementById('add-task');
+  const taskList      = document.getElementById('task-list');
+  const emptyMessage  = document.getElementById('empty-message');
+  const filterBtns    = document.querySelectorAll('.filter-btn');
 
- //Load task from local  storage
- if (localStorage.getItem('task')) {
-    tasks = JSON.parse(localStorage.getItem('tasks'))
-    renderTasks()
- }
+  // ── State ──────────────────────────────────────────────
+  let tasks         = JSON.parse(localStorage.getItem('tasks')) || [];
+  let currentFilter = 'all';
 
- //Add new task
- addTaskBtn.addEventListener('click', function () {
-    addTaskBtn()
- })
+  renderTasks();                           // draw tasks on first load
 
- taskInput.addEventListener('keypress', function (e) {
-    if (e.key === 'Enter') {
-        addTaskBtn()
-    }
- })
+  // ── Add-task events ────────────────────────────────────
+  addTaskBtn.addEventListener('click', addTask);
+  taskInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') addTask();
+  });
 
- //Filter tasks
- filterBtns.forEach((btn) => {
+  // ── Filter buttons ─────────────────────────────────────
+  filterBtns.forEach((btn) =>
     btn.addEventListener('click', function () {
-        filterBtns.forEach((b) => b.classList.remove('active'))
-        this.classList.add('active')
-        currentFilter = this.dataset.filterBtns
-        renderTasks()
+      filterBtns.forEach((b) => b.classList.remove('active'));
+      this.classList.add('active');
+      currentFilter = this.dataset.filter;            // “all” | “active” | “completed”
+      renderTasks();
     })
- })
+  );
 
- //Function to add a new task
- function addTask() {
-    const taskText = taskInput.value.trim()
-    if (taskText) {
-        const newTask = {
-            id: Date.now(),
-            text:taskText,
-            completed:false,
-        }
-   
-   tasks.push(newTask)
-   saveTasks()
-   renderTasks()
-   taskInput.value = ''
- }
-}
+  // ── CRUD helpers ───────────────────────────────────────
+  function addTask() {
+    const text = taskInput.value.trim();
+    if (!text) return;
 
-// Function to toggle task completion
-function toggleComplete(taskid) {
-    tasks = tasks.map((task) => {
-        if (task.id === taskId) {
-            return { ...task, complete: !task.complete }
-        }
-        return task
-    })
-    saveTasks()
-    renderTasks()
-}
+    tasks.push({ id: Date.now(), text, completed: false });
+    taskInput.value = '';
+    saveAndRender();
+  }
 
-// Function to delete a task
-function deleteTask(taskId) {
-    tasks = tasks.filter((task) => task.id !== taskId)
-    saveTasks()
-    renderTasks()
-}
+  function toggleComplete(id) {
+    tasks = tasks.map((t) =>
+      t.id === id ? { ...t, completed: !t.completed } : t
+    );
+    saveAndRender();
+  }
 
-//Function to save tasksto local storage
-function saveTasks() {
-    localStorage.setItem('task', JSON.stringify(tasks))
-}
+  function deleteTask(id) {
+    tasks = tasks.filter((t) => t.id !== id);
+    saveAndRender();
+  }
 
-//Function to render tasks based on current filter
-function renderTasks() {
-    taskList.innerHTML =''
+  function saveAndRender() {
+    localStorage.setItem('tasks', JSON.stringify(tasks));
+    renderTasks();
+  }
 
-//Filter tasks based on current filter
-let filterTasks = tasks
-if (currentFilter === 'active') {
-    filterTasks = task.filter((task) => !task.completed)
-} else if (currentFilter === 'completed') {
-    filteredTasks = tasks.filter((task) => task.completed)
-    }
+  // ── UI renderer ────────────────────────────────────────
+  function renderTasks() {
+    taskList.innerHTML = '';
 
-//Show/hide empty message
-if (filteredTasks.length ===0) {
-    emptyMessage.style.display = 'block'
-} else {
-    emptyMessage.style.display = 'none'
-}
+    let filtered = tasks;
+    if (currentFilter === 'active')     filtered = tasks.filter((t) => !t.completed);
+    if (currentFilter === 'completed')  filtered = tasks.filter((t) =>  t.completed);
 
-//Render filtered tasks
-filterTasks.forEach((task) => {
-    const taskItem = document.createElement('li')
-    taskItem.className = 'task-item'
+    emptyMessage.style.display = filtered.length ? 'none' : 'block';
 
-    const taskText =  document.createElement('span')
-    taskItem.className = 'task-text'
-    if (task.completed) {
-        taskText.classList.add('completed')
-    }
-taskText.textContent = task.text
+    filtered.forEach((task) => {
+      const li       = document.createElement('li');
+      li.className   = 'task-item';
 
-const taskActions = document.createElement('div')
-taskActions.className = 'task-actions'
+      const span     = document.createElement('span');
+      span.className = 'task-text';
+      span.textContent = task.text;
+      if (task.completed) span.classList.add('completed');
 
-const completeBtn = document.createElement('button')
-completionBtn.className = 'completion-btn'
-completionBtn.textContent = task.completed ? 'Undo' : 'Complete'
-completeBtn.addEventListener('click', () => toggleComplete(task.id))
+      const actions  = document.createElement('div');
+      actions.className = 'task-actions';
 
-const deleteBtn = document.createElement('button')
-deleteBtn.className = 'delete-btn'
-deleteBtn.textContent = 'Delete'
-deleteBtn.addEventListener('click', () => deleteTask(task.id))
+      const completeBtn = document.createElement('button');
+      completeBtn.className = 'complete-btn';
+      completeBtn.textContent = task.completed ? 'Undo' : 'Complete';
+      completeBtn.addEventListener('click', () => toggleComplete(task.id));
 
-taskItem.appendChild(completeBtn)
-taskActions.appendChild(deleteBtn)
+      const deleteBtn   = document.createElement('button');
+      deleteBtn.className = 'delete-btn';
+      deleteBtn.textContent = 'Delete';
+      deleteBtn.addEventListener('click', () => deleteTask(task.id));
 
-taskItem.appendChild(taskText)
-taskItem.appendChild(taskActions)
+      actions.appendChild(completeBtn);
+      actions.appendChild(deleteBtn);
 
-taskList.appendChild(taskItem)
-})
-}
-})
+      li.appendChild(span);
+      li.appendChild(actions);
+
+      taskList.appendChild(li);
+    });
+  }
+});
